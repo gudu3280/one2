@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv8 目标检测</title>
+    <style>
+        :root { --primary: #2196F3; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .upload-box {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        #preview, #result {
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: opacity 0.3s;
+        }
+        button:hover { opacity: 0.9; }
+        .loading {
+            display: none;
+            color: var(--primary);
+            margin: 20px 0;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .upload-box { padding: 20px; }
+            button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: var(--primary); text-align: center;">YOLOv8 目标检测</h1>
+
+        <div class="upload-box">
+            <input type="file" id="fileInput" accept="image/*" hidden>
+            <label for="fileInput" style="cursor: pointer;">
+                <div style="padding: 20px;">
+                    <svg width="50" height="50" viewBox="0 0 24 24" fill="var(--primary)">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    <p>点击选择图片或拖拽到此处</p>
+                </div>
+            </label>
+            <button onclick="startDetection()">开始检测</button>
+            <div class="loading" id="loading">检测中...</div>
+        </div>
+
+        <div class="result-area">
+            <h3>检测结果对比：</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>原始图片</h4>
+                    <img id="preview" alt="预览">
+                </div>
+                <div>
+                    <h4>检测结果</h4>
+                    <img id="result" alt="结果">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const resultImg = document.getElementById('result');
+        const loading = document.getElementById('loading');
+
+        // 拖拽上传功能
+        document.addEventListener('dragover', e => e.preventDefault());
+        document.addEventListener('drop', e => {
+            e.preventDefault();
+            if (e.dataTransfer.files) {
+                fileInput.files = e.dataTransfer.files;
+                previewFile();
+            }
+        });
+
+        // 文件选择处理
+        fileInput.onchange = previewFile;
+
+        function previewFile() {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function startDetection() {
+            if (!fileInput.files[0]) return alert('请先选择图片');
+
+            loading.style.display = 'block';
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error(`HTTP错误 ${response.status}`);
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                resultImg.src = data.result + '?t=' + Date.now();
+                resultImg.style.display = 'block';
+            } catch (error) {
+                alert('检测失败: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
